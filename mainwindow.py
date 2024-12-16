@@ -7,174 +7,417 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
                            QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QComboBox, QDateEdit, QHBoxLayout,
                                QLabel, QLineEdit, QMainWindow, QPushButton,
-                               QSizePolicy, QVBoxLayout, QWidget)
+                               QSizePolicy, QVBoxLayout, QWidget, QTableWidget,
+                               QTableWidgetItem, QHeaderView, QMessageBox, QTimeEdit, QGridLayout)
+from database import Database
 
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(500, 400)
-        MainWindow.setMinimumSize(QSize(500, 400))
+        MainWindow.resize(600, 500)
+        MainWindow.setMinimumSize(QSize(600, 500))
         MainWindow.setMaximumSize(QSize(1920, 1080))
-        
+
         # Set default font size for the entire window
         default_font = QFont()
         default_font.setPointSize(20)
         MainWindow.setFont(default_font)
-        
+
         # Set the window icon
         icon = QIcon("pineapple.ico")
         MainWindow.setWindowIcon(icon)
         MainWindow.setMouseTracking(True)
-        MainWindow.setStyleSheet(
-            u"backgroundcolor:qlineargradient(spread:pad, x1:1, y1:1, x2:0, y2:0,stop:0 rgba(81,0, 135, 255), stop:0.427447 rgba(41, 61, 132, 235), stop:1 rgba(155, 79, 165, 255));\n"
-            "")
+        MainWindow.setStyleSheet(u"background-color: #f0f0f0;")
+
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.pushButton = QPushButton(self.centralwidget)
-        self.pushButton.setObjectName(u"pushButton")
-        self.pushButton.setGeometry(QRect(9, 367, 91, 24))
-        font = QFont()
-        font.setBold(True)
-        self.pushButton.setFont(font)
-        self.widget = QWidget(self.centralwidget)
-        self.widget.setObjectName(u"widget")
-        self.widget.setGeometry(QRect(9, 9, 354, 116))
-        self.verticalLayout_4 = QVBoxLayout(self.widget)
-        self.verticalLayout_4.setObjectName(u"verticalLayout_4")
-        self.verticalLayout_4.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout = QVBoxLayout()
-        self.verticalLayout.setObjectName(u"verticalLayout")
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.label_2 = QLabel(self.widget)
-        self.label_2.setObjectName(u"label_2")
 
-        self.horizontalLayout.addWidget(self.label_2)
+        # Create main layout
+        self.mainLayout = QVBoxLayout(self.centralwidget)
 
-        self.label_3 = QLabel(self.widget)
-        self.label_3.setObjectName(u"label_3")
+        # Title
+        self.titleLabel = QLabel("AnAvia", self.centralwidget)
+        self.titleLabel.setStyleSheet("font-size: 36px; font-weight: bold; color: white; margin: 10px;")
+        self.titleLabel.setAlignment(Qt.AlignCenter)
+        self.mainLayout.addWidget(self.titleLabel)
 
-        self.horizontalLayout.addWidget(self.label_3)
+        # Search parameters section
+        self.searchLayout = QVBoxLayout()
 
-        self.verticalLayout.addLayout(self.horizontalLayout)
+        # Cities
+        self.citiesLayout = QHBoxLayout()
+        self.fromLabel = QLabel("Откуда:", self.centralwidget)
+        self.fromCity = QLineEdit(self.centralwidget)
+        self.toLabel = QLabel("Куда:", self.centralwidget)
+        self.toCity = QLineEdit(self.centralwidget)
 
-        self.horizontalLayout_2 = QHBoxLayout()
-        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
-        self.lineEdit = QLineEdit(self.widget)
-        self.lineEdit.setObjectName(u"lineEdit")
+        self.citiesLayout.addWidget(self.fromLabel)
+        self.citiesLayout.addWidget(self.fromCity)
+        self.citiesLayout.addWidget(self.toLabel)
+        self.citiesLayout.addWidget(self.toCity)
 
-        self.horizontalLayout_2.addWidget(self.lineEdit)
+        # Dates
+        self.datesLayout = QHBoxLayout()
+        self.departLabel = QLabel("Дата вылета:", self.centralwidget)
+        self.departDate = QDateEdit(self.centralwidget)
+        self.departDate.setCalendarPopup(True)
+        self.returnLabel = QLabel("Дата возврата:", self.centralwidget)
+        self.returnDate = QDateEdit(self.centralwidget)
+        self.returnDate.setCalendarPopup(True)
 
-        self.lineEdit_2 = QLineEdit(self.widget)
-        self.lineEdit_2.setObjectName(u"lineEdit_2")
+        self.datesLayout.addWidget(self.departLabel)
+        self.datesLayout.addWidget(self.departDate)
+        self.datesLayout.addWidget(self.returnLabel)
+        self.datesLayout.addWidget(self.returnDate)
 
-        self.horizontalLayout_2.addWidget(self.lineEdit_2)
+        # Passengers and class
+        self.detailsLayout = QHBoxLayout()
+        self.passengersLabel = QLabel("Пассажиры:", self.centralwidget)
+        self.passengersCount = QComboBox(self.centralwidget)
+        for i in range(1, 10):
+            self.passengersCount.addItem(str(i))
 
-        self.verticalLayout.addLayout(self.horizontalLayout_2)
+        self.classLabel = QLabel("Класс:", self.centralwidget)
+        self.travelClass = QComboBox(self.centralwidget)
+        self.travelClass.addItems(["Эконом", "Бизнес", "Первый"])
 
-        self.verticalLayout_4.addLayout(self.verticalLayout)
+        self.detailsLayout.addWidget(self.passengersLabel)
+        self.detailsLayout.addWidget(self.passengersCount)
+        self.detailsLayout.addWidget(self.classLabel)
+        self.detailsLayout.addWidget(self.travelClass)
 
-        self.horizontalLayout_5 = QHBoxLayout()
-        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
-        self.verticalLayout_2 = QVBoxLayout()
-        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
-        self.horizontalLayout_3 = QHBoxLayout()
-        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.label_4 = QLabel(self.widget)
-        self.label_4.setObjectName(u"label_4")
+        # Search button
+        self.searchButton = QPushButton("Найти билеты", self.centralwidget)
 
-        self.horizontalLayout_3.addWidget(self.label_4)
+        # Add all layouts to main search layout
+        self.searchLayout.addLayout(self.citiesLayout)
+        self.searchLayout.addLayout(self.datesLayout)
+        self.searchLayout.addLayout(self.detailsLayout)
+        self.searchLayout.addWidget(self.searchButton)
 
-        self.label_5 = QLabel(self.widget)
-        self.label_5.setObjectName(u"label_5")
+        # Results section
+        self.resultsLabel = QLabel("Результаты поиска:", self.centralwidget)
+        self.resultsLabel.hide()
+        self.mainLayout.addWidget(self.resultsLabel)
 
-        self.horizontalLayout_3.addWidget(self.label_5)
+        # Results table
+        self.resultsTable = QTableWidget(self.centralwidget)
+        self.resultsTable.setColumnCount(7)
+        self.resultsTable.setHorizontalHeaderLabels([
+            "Авиакомпания", "Откуда", "Куда", "Дата вылета", "Время вылета", "Время прилета", "Цена"
+        ])
+        self.resultsTable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.resultsTable.hide()
+        self.mainLayout.addStretch()
+        self.mainLayout.addWidget(self.resultsTable)
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_3)
+        # Add search layout to main layout
+        self.mainLayout.addLayout(self.searchLayout)
 
-        self.horizontalLayout_4 = QHBoxLayout()
-        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
-        self.dateEdit = QDateEdit(self.widget)
-        self.dateEdit.setObjectName(u"dateEdit")
-
-        self.horizontalLayout_4.addWidget(self.dateEdit)
-
-        self.dateEdit_2 = QDateEdit(self.widget)
-        self.dateEdit_2.setObjectName(u"dateEdit_2")
-
-        self.horizontalLayout_4.addWidget(self.dateEdit_2)
-
-        self.verticalLayout_2.addLayout(self.horizontalLayout_4)
-
-        self.horizontalLayout_5.addLayout(self.verticalLayout_2)
-
-        self.verticalLayout_3 = QVBoxLayout()
-        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.comboBox = QComboBox(self.widget)
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.setObjectName(u"comboBox")
-
-        self.verticalLayout_3.addWidget(self.comboBox)
-
-        self.comboBox_2 = QComboBox(self.widget)
-        self.comboBox_2.addItem("")
-        self.comboBox_2.addItem("")
-        self.comboBox_2.addItem("")
-        self.comboBox_2.addItem("")
-        self.comboBox_2.setObjectName(u"comboBox_2")
-
-        self.verticalLayout_3.addWidget(self.comboBox_2)
-
-        self.horizontalLayout_5.addLayout(self.verticalLayout_3)
-
-        self.verticalLayout_4.addLayout(self.horizontalLayout_5)
-
+        # Set central widget
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
-
         QMetaObject.connectSlotsByName(MainWindow)
-
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"AnAvia", None))
-        self.pushButton.setText(QCoreApplication.translate("MainWindow",
-                                                           u"\u041d\u0430\u0439\u0442\u0438 \u0431\u0438\u043b\u0435\u0442\u044b",
-                                                           None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"\u041e\u0442\u043a\u0443\u0434\u0430", None))
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"\u041a\u0443\u0434\u0430", None))
-        self.lineEdit_2.setText("")
-        self.label_4.setText(QCoreApplication.translate("MainWindow", u"\u041a\u043e\u0433\u0434\u0430", None))
-        self.label_5.setText(
-            QCoreApplication.translate("MainWindow", u"\u041e\u0431\u0440\u0430\u0442\u043d\u043e", None))
-        self.comboBox.setItemText(0, QCoreApplication.translate("MainWindow",
-                                                                u"1 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440",
-                                                                None))
-        self.comboBox.setItemText(1, QCoreApplication.translate("MainWindow",
-                                                                u"2 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430",
-                                                                None))
-        self.comboBox.setItemText(2, QCoreApplication.translate("MainWindow",
-                                                                u"3 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430",
-                                                                None))
-        self.comboBox.setItemText(3, QCoreApplication.translate("MainWindow",
-                                                                u"4 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u0430",
-                                                                None))
-        self.comboBox.setItemText(4, QCoreApplication.translate("MainWindow",
-                                                                u"5 \u043f\u0430\u0441\u0441\u0430\u0436\u0438\u0440\u043e\u0432",
-                                                                None))
 
-        self.comboBox_2.setItemText(0, QCoreApplication.translate("MainWindow", u"\u042d\u043a\u043e\u043d\u043e\u043c",
-                                                                  None))
-        self.comboBox_2.setItemText(1, QCoreApplication.translate("MainWindow",
-                                                                  u"\u041a\u043e\u043c\u0444\u043e\u0440\u0442", None))
-        self.comboBox_2.setItemText(2, QCoreApplication.translate("MainWindow", u"\u0411\u0438\u0437\u043d\u0435\u0441",
-                                                                  None))
-        self.comboBox_2.setItemText(3, QCoreApplication.translate("MainWindow",
-                                                                  u"\u041f\u0435\u0440\u0432\u044b\u0439 \u043a\u043b\u0430\u0441\u0441",
-                                                                  None))
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+        self.db = Database()
+        self.current_role = "user"
+
+        # Set window title
+        self.setWindowTitle("AnAvia")
+
+        # Connect signals
+        self.ui.searchButton.clicked.connect(self.search_tickets)
+
+        # Set current date as minimum
+        current_date = QDate.currentDate()
+        self.ui.departDate.setMinimumDate(current_date)
+        self.ui.returnDate.setMinimumDate(current_date)
+
+        # Apply styling
+        self.apply_style()
+
+        # Initialize admin controls (but don't show them yet)
+        self.setup_admin_controls()
+
+    def apply_style(self):
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #2b5876;
+            }
+            QWidget {
+                background-color: #2b5876;
+            }
+            QLabel {
+                color: white;
+                font-size: 14px;
+                padding: 5px;
+            }
+            QLineEdit {
+                padding: 8px;
+                border: 2px solid #4e4376;
+                border-radius: 4px;
+                background-color: white;
+                color: black;
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #4e4376;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-size: 14px;
+                min-width: 100px;
+            }
+            QPushButton:hover {
+                background-color: #5e5386;
+            }
+            QComboBox {
+                padding: 8px;
+                border: 2px solid #4e4376;
+                border-radius: 4px;
+                background-color: white;
+                color: black;
+                font-size: 14px;
+                min-width: 150px;
+            }
+            QDateEdit {
+                padding: 8px;
+                border: 2px solid #4e4376;
+                border-radius: 4px;
+                background-color: white;
+                color: black;
+                font-size: 14px;
+                min-width: 150px;
+            }
+            QTableWidget {
+                background-color: white;
+                color: black;
+                border: 2px solid #4e4376;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #4e4376;
+                color: white;
+                padding: 8px;
+                border: none;
+                font-size: 14px;
+            }
+            QSpinBox {
+                padding: 8px;
+                border: 2px solid #4e4376;
+                border-radius: 4px;
+                background-color: white;
+                color: black;
+                font-size: 14px;
+                min-width: 100px;
+            }
+        """)
+
+    def setup_admin_controls(self):
+        # Create admin section
+        self.admin_widget = QWidget()
+        self.admin_widget.setObjectName("adminPanel")
+        admin_layout = QVBoxLayout()
+
+        # Add ticket section label
+        admin_label = QLabel("Панель администратора")
+        admin_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        admin_layout.addWidget(admin_label)
+
+        # Add fields for new ticket
+        ticket_form = QGridLayout()
+
+        # Airline input
+        self.ui.airlineInput = QLineEdit()
+        self.ui.airlineInput.setPlaceholderText("Название авиакомпании")
+        ticket_form.addWidget(QLabel("Авиакомпания:"), 0, 0)
+        ticket_form.addWidget(self.ui.airlineInput, 0, 1)
+
+        # Price input
+        self.ui.priceInput = QLineEdit()
+        self.ui.priceInput.setPlaceholderText("Цена")
+        ticket_form.addWidget(QLabel("Цена:"), 1, 0)
+        ticket_form.addWidget(self.ui.priceInput, 1, 1)
+
+        # Time inputs
+        self.ui.departureTime = QTimeEdit()
+        self.ui.arrivalTime = QTimeEdit()
+        ticket_form.addWidget(QLabel("Время вылета:"), 2, 0)
+        ticket_form.addWidget(self.ui.departureTime, 2, 1)
+        ticket_form.addWidget(QLabel("Время прилета:"), 3, 0)
+        ticket_form.addWidget(self.ui.arrivalTime, 3, 1)
+
+        admin_layout.addLayout(ticket_form)
+
+        # Add ticket button
+        self.ui.addTicketButton = QPushButton("Добавить билет")
+        self.ui.addTicketButton.clicked.connect(self.add_ticket)
+        admin_layout.addWidget(self.ui.addTicketButton)
+
+        self.admin_widget.setLayout(admin_layout)
+        self.ui.mainLayout.addWidget(self.admin_widget)
+        self.admin_widget.hide()  # Hide by default
+
+    def hide_admin_controls(self):
+        if hasattr(self, 'admin_widget'):
+            self.admin_widget.hide()
+
+    def show_admin_controls(self):
+        if hasattr(self, 'admin_widget'):
+            self.admin_widget.show()
+
+    def set_user_role(self, role):
+        self.current_role = role
+        if role == "admin":
+            self.show_admin_controls()
+        else:
+            self.hide_admin_controls()
+
+    def add_ticket(self):
+        if self.current_role != "admin":
+            QMessageBox.warning(self, "Ошибка", "Недостаточно прав")
+            return
+
+        try:
+            # Get values from UI
+            airline = self.ui.airlineInput.text()
+            from_city = self.ui.fromCity.text()
+            to_city = self.ui.toCity.text()
+            departure_date = self.ui.departDate.date().toString("yyyy-MM-dd")
+            departure_time = self.ui.departureTime.time().toString("HH:mm")
+            arrival_time = self.ui.arrivalTime.time().toString("HH:mm")
+
+            # Validate price input
+            try:
+                price = float(self.ui.priceInput.text())
+            except ValueError:
+                QMessageBox.warning(self, "Ошибка", "Введите корректную цену")
+                return
+
+            # Validate required fields
+            if not all([airline, from_city, to_city, departure_date, departure_time, arrival_time]):
+                QMessageBox.warning(self, "Ошибка", "Заполните все поля")
+                return
+
+            # Add to database
+            departure_datetime = f"{departure_date} {departure_time}"
+            arrival_datetime = f"{departure_date} {arrival_time}"
+
+            success = self.db.add_flight(airline, from_city, to_city,
+                                       departure_datetime, arrival_datetime,
+                                       price)
+
+            if success:
+                QMessageBox.information(self, "Успех", "Билет успешно добавлен")
+                # Clear inputs
+                self.ui.airlineInput.clear()
+                self.ui.priceInput.clear()
+            else:
+                QMessageBox.warning(self, "Ошибка", "Не удалось добавить билет")
+
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Произошла ошибка: {str(e)}")
+
+    def search_tickets(self):
+        # Get search parameters
+        from_city = self.ui.fromCity.text()
+        to_city = self.ui.toCity.text()
+        depart_date = self.ui.departDate.date().toString("yyyy-MM-dd")
+        return_date = self.ui.returnDate.date().toString("yyyy-MM-dd")
+        passengers = int(self.ui.passengersCount.currentText())
+
+        # Debug prints
+        print(f"Searching for flights:")
+        print(f"From: {from_city}")
+        print(f"To: {to_city}")
+        print(f"Departure: {depart_date}")
+        print(f"Return: {return_date}")
+
+        # Convert class names to database format
+        class_map = {
+            "Эконом": "Economy",
+            "Бизнес": "Business",
+            "Первый": "First"
+        }
+        travel_class = class_map[self.ui.travelClass.currentText()]
+        print(f"Class: {travel_class}")
+
+        # Search for tickets
+        outbound_tickets, return_tickets = self.db.search_tickets(
+            from_city, to_city, depart_date, return_date,
+            passengers, travel_class
+        )
+
+        # Debug prints
+        print(f"Found outbound tickets: {len(outbound_tickets)}")
+        print(f"Found return tickets: {len(return_tickets)}")
+
+        # Show results
+        self.ui.resultsLabel.show()
+        self.display_tickets(outbound_tickets, return_tickets)
+
+    def display_tickets(self, outbound_tickets, return_tickets):
+        # Clear previous results
+        self.ui.resultsTable.clear()
+        self.ui.resultsTable.setRowCount(0)
+
+        # Set up table headers
+        headers = ["Авиакомпания", "Откуда", "Куда", "Дата вылета", "Время вылета", "Время прилета", "Цена"]
+        self.ui.resultsTable.setColumnCount(len(headers))
+        self.ui.resultsTable.setHorizontalHeaderLabels(headers)
+
+        # Create a dictionary to store unique flights per airline
+        unique_flights = {}
+
+        # Process outbound tickets
+        if outbound_tickets:
+            for ticket in outbound_tickets:
+                airline = ticket[1]
+                if airline not in unique_flights:
+                    unique_flights[airline] = ticket
+
+        # Display unique flights
+        if unique_flights:
+            row_count = len(unique_flights)
+            self.ui.resultsTable.setRowCount(row_count)
+
+            for i, (airline, ticket) in enumerate(unique_flights.items()):
+                airline_item = QTableWidgetItem(airline)
+                origin = QTableWidgetItem(f"{ticket[3]} ({ticket[4]})")
+                dest = QTableWidgetItem(f"{ticket[5]} ({ticket[6]})")
+                date = QTableWidgetItem(ticket[7])
+                dep_time = QTableWidgetItem(ticket[8])
+                arr_time = QTableWidgetItem(ticket[9])
+                price = QTableWidgetItem(f"{ticket[10]:.2f} ₽")
+
+                self.ui.resultsTable.setItem(i, 0, airline_item)
+                self.ui.resultsTable.setItem(i, 1, origin)
+                self.ui.resultsTable.setItem(i, 2, dest)
+                self.ui.resultsTable.setItem(i, 3, date)
+                self.ui.resultsTable.setItem(i, 4, dep_time)
+                self.ui.resultsTable.setItem(i, 5, arr_time)
+                self.ui.resultsTable.setItem(i, 6, price)
+
+        # Resize table to fit content
+        self.ui.resultsTable.resizeColumnsToContents()
+        self.ui.resultsTable.resizeRowsToContents()
+
+        # Show table
+        self.ui.resultsTable.show()

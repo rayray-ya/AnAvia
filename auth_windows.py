@@ -1,10 +1,12 @@
-from PySide6.QtCore import Qt, QCoreApplication
+from PySide6.QtCore import Qt, QCoreApplication, Signal
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QLabel, QLineEdit, QPushButton, QMessageBox)
 from PySide6.QtGui import QIcon
 from database import Database
 
 class LoginWindow(QMainWindow):
+    logged_in = Signal(str)
+
     def __init__(self, main_window=None):
         super().__init__()
         self.main_window = main_window
@@ -61,10 +63,7 @@ class LoginWindow(QMainWindow):
         # Стилизация
         self.setStyleSheet("""
             QMainWindow {
-                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, 
-                    stop:0 rgba(0, 50, 150, 255), 
-                    stop:0.5 rgba(0, 100, 200, 255), 
-                    stop:1 rgba(100, 150, 255, 255));
+                background-color: #2b5876;
             }
             QLabel {
                 color: white;
@@ -77,13 +76,13 @@ class LoginWindow(QMainWindow):
             }
             QPushButton {
                 padding: 8px 16px;
-                background-color: #4a90e2;
+                background-color: #4e4376;
                 color: white;
                 border: none;
                 border-radius: 4px;
             }
             QPushButton:hover {
-                background-color: #357abd;
+                background-color: #5e5386;
             }
         """)
 
@@ -94,9 +93,11 @@ class LoginWindow(QMainWindow):
         if not login or not password:
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля")
             return
-            
-        if self.db.check_user_exists(login, password):
+        
+        success, role = self.db.check_user_exists(login, password)
+        if success:
             if self.main_window:
+                self.main_window.set_user_role(role)
                 self.main_window.show()
             self.close()
         else:
