@@ -81,9 +81,27 @@ class Database:
             OriginAirportID INTEGER,
             DestinationAirportID INTEGER,
             Price REAL(10,2),
+            AvailableSeats INTEGER DEFAULT 100,
             FOREIGN KEY (AirlineID) REFERENCES Airlines(AirlineID),
             FOREIGN KEY (OriginAirportID) REFERENCES Airports(AirportID),
             FOREIGN KEY (DestinationAirportID) REFERENCES Airports(AirportID)
+        )
+        ''')
+        
+        # Create Purchased Tickets table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS PurchasedTickets (
+            TicketID INTEGER PRIMARY KEY AUTOINCREMENT,
+            FlightID INTEGER,
+            UserID INTEGER,
+            PurchaseDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PassengerName VARCHAR(100),
+            PassengerEmail VARCHAR(100),
+            PassengerPhone VARCHAR(20),
+            SeatNumber VARCHAR(10),
+            Status VARCHAR(20) DEFAULT 'active',
+            FOREIGN KEY (FlightID) REFERENCES Flights(FlightID),
+            FOREIGN KEY (UserID) REFERENCES users(user_id)
         )
         ''')
         
@@ -175,7 +193,18 @@ class Database:
         user = cursor.fetchone()
         conn.close()
         return user is not None
-        
+
+    def get_user_id(self, login):
+        try:
+            conn = sqlite3.connect(self.db_name)
+            cursor = conn.cursor()
+            cursor.execute('SELECT user_id FROM users WHERE login = ?', (login,))
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] if result else None
+        except Exception as e:
+            print(f"Error getting user ID: {e}")
+            return None
 
     def search_tickets(self, origin_city, destination_city, departure_date, return_date=None, passenger_count=1, travel_class='Economy'):
         conn = sqlite3.connect(self.db_name)
@@ -403,3 +432,48 @@ class Database:
         except Exception as e:
             print(f"Error adding flight: {e}")
             return False
+
+    def purchase_ticket(self, flight_id, user_id, passenger_name, passenger_email, passenger_phone):
+        try:
+            conn = sqlite3.connect(self.db_name)
+            cursor = conn.cursor()
+            
+            # Check if flight exists and has available seats
+            cursor.execute('SELECT AvailableSeats FROM Flights WHERE FlightID = ?', (flight_id,))
+            result = cursor.fetchone()
+            if not result or result[0] <= 0:
+                return False, "Нет доступных мест"
+            
+            # Generate seat number (simple implementation)
+            cursor.execute('SELECT COUNT(*) FROM PurchasedTickets WHERE FlightID = ?', (flight_id,))
+            seat_count = cursor.fetchone()[0]
+            seat_number = f"A{seat_count + 1}"
+            
+            # Add purchased ticket
+            cursor.execute('''
+                INSERT INTO PurchasedTickets 
+                (FlightID, UserID, PassengerName, PassengerEmail, PassengerPhone, SeatNumber)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (flight_id, user_id, passenger_name, passenger_email, passenger_phone, seat_number))
+            
+            # Update available seats
+            cursor.execute('UPDATE Flights SET AvailableSeats = AvailableSeats - 1 WHERE FlightID = ?', 
+                         (flight_id,))
+            
+            conn.commit()
+            conn.close()
+            return True, f"Билет успешно куплен. Номер места: {seat_number}"
+            
+        except Exception as e:
+            print(f"Error purchasing ticket: {e}")
+            return False, "Ошибка при покупке билета"
+
+    def check_credentials(self, login, password):
+        conn = sqlite3.connect(self.db_name)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT role FROM users WHERE login = ? AND password = ?', (login, password))
+        result = cursor.fetchone()
+        
+        conn.close()
+        return result[0] if result else None

@@ -10,14 +10,14 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QDateEdit, QHBoxLayout,
                                QSizePolicy, QVBoxLayout, QWidget, QTableWidget,
                                QTableWidgetItem, QHeaderView, QMessageBox, QTimeEdit, QGridLayout)
 from database import Database
-
+from purchase_window import PurchaseDialog
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(600, 500)
-        MainWindow.setMinimumSize(QSize(600, 500))
+        MainWindow.resize(900, 500)
+        MainWindow.setMinimumSize(QSize(900, 500))
         MainWindow.setMaximumSize(QSize(1920, 1080))
 
         # Set default font size for the entire window
@@ -283,8 +283,12 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'admin_widget'):
             self.admin_widget.show()
 
-    def set_user_role(self, role):
+    def set_user(self, login, role):
+        self.current_login = login
         self.current_role = role
+        self.current_user_id = self.db.get_user_id(login)
+        
+        # Show/hide admin panel based on role
         if role == "admin":
             self.show_admin_controls()
         else:
@@ -379,7 +383,7 @@ class MainWindow(QMainWindow):
         self.ui.resultsTable.setRowCount(0)
 
         # Set up table headers
-        headers = ["Авиакомпания", "Откуда", "Куда", "Дата вылета", "Время вылета", "Время прилета", "Цена"]
+        headers = ["Авиакомпания", "Откуда", "Куда", "Дата вылета", "Время вылета", "Время прилета", "Цена", "Действия"]
         self.ui.resultsTable.setColumnCount(len(headers))
         self.ui.resultsTable.setHorizontalHeaderLabels(headers)
 
@@ -415,9 +419,95 @@ class MainWindow(QMainWindow):
                 self.ui.resultsTable.setItem(i, 5, arr_time)
                 self.ui.resultsTable.setItem(i, 6, price)
 
-        # Resize table to fit content
-        self.ui.resultsTable.resizeColumnsToContents()
-        self.ui.resultsTable.resizeRowsToContents()
+                # Add Buy button with fixed size
+                buy_button = QPushButton("Купить")
+                buy_button.setFixedSize(100, 30)  # Устанавливаем фиксированный размер кнопки
+                buy_button.clicked.connect(lambda checked, t=ticket: self.buy_ticket(t))
+                buy_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #4e4376;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 5px;
+                    }
+                    QPushButton:hover {
+                        background-color: #5e5386;
+                    }
+                """)
+                
+                # Создаем виджет-контейнер для центрирования кнопки
+                container = QWidget()
+                layout = QHBoxLayout(container)
+                layout.addWidget(buy_button)
+                layout.setAlignment(Qt.AlignCenter)
+                layout.setContentsMargins(0, 0, 0, 0)
+                self.ui.resultsTable.setCellWidget(i, 7, container)
+
+        # Настраиваем размеры таблицы
+        self.ui.resultsTable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # Устанавливаем фиксированную ширину для колонки с кнопками
+        self.ui.resultsTable.horizontalHeader().setSectionResizeMode(7, QHeaderView.Fixed)
+        self.ui.resultsTable.setColumnWidth(7, 120)
+        
+        # Настраиваем автоматическое изменение размера строк
+        self.ui.resultsTable.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.ui.resultsTable.verticalHeader().setDefaultSectionSize(40)
 
         # Show table
         self.ui.resultsTable.show()
+
+    def buy_ticket(self, ticket):
+        # Проверяем, вошел ли пользователь в систему
+        if not hasattr(self, 'current_user_id'):
+            QMessageBox.warning(self, "Ошибка", "Необходимо войти в систему")
+            return
+            
+        # Prepare flight data for the purchase dialog
+        flight_data = {
+            'airline': ticket[1],
+            'origin': f"{ticket[3]} ({ticket[4]})",
+            'destination': f"{ticket[5]} ({ticket[6]})",
+            'date': ticket[7],
+            'departure': ticket[8],
+            'arrival': ticket[9],
+            'price': ticket[10],
+            'passengers': int(self.ui.passengersCount.currentText())  # Добавляем количество пассажиров
+        }
+        
+        dialog = PurchaseDialog(self, flight_data)
+        if dialog.exec():
+            passengers_info = dialog.get_passenger_info()  # Теперь это список словарей с информацией о пассажирах
+            success = True
+            error_message = ""
+            seat_info = []  # Список для хранения информации о местах
+            
+            # Покупаем билет для каждого пассажира
+            for passenger in passengers_info:
+                success, message = self.db.purchase_ticket(
+                    ticket[0],  # flight_id
+                    self.current_user_id,  # user_id
+                    passenger['name'],
+                    passenger['email'],
+                    passenger['phone']
+                )
+                if success:
+                    # Добавляем информацию о месте и пассажире
+                    seat_number = message.split("Номер места: ")[1]
+                    seat_info.append(f"Пассажир: {passenger['name']}\nМесто: {seat_number}")
+                else:
+                    error_message = message
+                    break
+            
+            if success:
+                # Формируем сообщение с информацией о всех купленных билетах
+                success_message = "Билеты успешно куплены!\n\n"
+                success_message += "\n\n".join(seat_info)
+                QMessageBox.information(self, "Успех", success_message)
+                self.search_tickets()  # Обновляем список билетов
+            else:
+                QMessageBox.warning(self, "Ошибка", f"Ошибка при покупке билетов: {error_message}")
+
+    def purchase_ticket(self, flight_id, name, email, phone):
+        # Implement purchase logic here
+        pass

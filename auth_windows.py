@@ -93,12 +93,11 @@ class LoginWindow(QMainWindow):
         if not login or not password:
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля")
             return
-        
-        success, role = self.db.check_user_exists(login, password)
-        if success:
-            if self.main_window:
-                self.main_window.set_user_role(role)
-                self.main_window.show()
+            
+        role = self.db.check_credentials(login, password)
+        if role:
+            self.main_window.set_user(login, role)
+            self.main_window.show()  # Показываем главное окно
             self.close()
         else:
             QMessageBox.warning(self, "Ошибка", "Неверный логин или пароль")
@@ -174,10 +173,7 @@ class RegisterWindow(QMainWindow):
         # Стилизация
         self.setStyleSheet("""
             QMainWindow {
-                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, 
-                    stop:0 rgba(0, 50, 150, 255), 
-                    stop:0.5 rgba(0, 100, 200, 255), 
-                    stop:1 rgba(100, 150, 255, 255));
+                background-color: #2b5876;
             }
             QLabel {
                 color: white;
@@ -190,13 +186,13 @@ class RegisterWindow(QMainWindow):
             }
             QPushButton {
                 padding: 8px 16px;
-                background-color: #4a90e2;
+                background-color: #4e4376;
                 color: white;
                 border: none;
                 border-radius: 4px;
             }
             QPushButton:hover {
-                background-color: #357abd;
+                background-color: #5e5386;
             }
         """)
 
