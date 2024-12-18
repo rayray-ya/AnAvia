@@ -73,6 +73,7 @@ class LoginWindow(QMainWindow):
                 border: 1px solid #ccc;
                 border-radius: 4px;
                 background-color: black;
+                color: white;
             }
             QPushButton {
                 padding: 8px 16px;
@@ -183,6 +184,7 @@ class RegisterWindow(QMainWindow):
                 border: 1px solid #ccc;
                 border-radius: 4px;
                 background-color: black;
+                color: white;
             }
             QPushButton {
                 padding: 8px 16px;
