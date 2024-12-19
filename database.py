@@ -1,5 +1,7 @@
 import sqlite3
 from datetime import datetime
+import hashlib
+import os
 
 class Database:
     def __init__(self, db_name='airline_system.db'):
@@ -13,13 +15,14 @@ class Database:
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
         
-        # Create users table for authentication with role field
+        # Создание таблицы users
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             login VARCHAR(100) UNIQUE NOT NULL,
             email VARCHAR(100) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
+            salt BLOB NOT NULL,
             role VARCHAR(20) DEFAULT 'user'
         )
         ''')
@@ -27,11 +30,14 @@ class Database:
         # Check if admin exists
         cursor.execute('SELECT * FROM users WHERE login = ?', ('admin',))
         if not cursor.fetchone():
+            # Хешируем пароль администратора
+            admin_password = 'admin123'
+            hashed_password, salt = self.hash_password(admin_password)
             cursor.execute('''
-            INSERT INTO users (login, email, password, role)
-            VALUES ('admin', 'admin@example.com', 'admin123', 'admin')
-            ''')
-        
+            INSERT INTO users (login, email, password, salt, role)
+            VALUES (?, ?, ?, ?, ?)
+            ''', ('admin', 'admin@example.com', hashed_password, salt, 'admin'))
+
         # Create Airlines table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS Airlines (
@@ -135,6 +141,22 @@ class Database:
         conn.commit()
         conn.close()
     
+    def hash_password(self, password, salt=None):
+        """Хеширует пароль с использованием SHA-256 и соли"""
+        if salt is None:
+            salt = os.urandom(32)  # 32 байта случайной соли
+        # Комбинируем пароль и соль
+        salted_password = password.encode() + salt
+        # Хешируем комбинацию
+        hashed = hashlib.sha256(salted_password).hexdigest()
+        return hashed, salt
+
+    def verify_password(self, stored_password, stored_salt, provided_password):
+        """Проверяет соответствие введенного пароля хешированному"""
+        # Хешируем предоставленный пароль с сохраненной солью
+        hashed_provided, _ = self.hash_password(provided_password, stored_salt)
+        return stored_password == hashed_provided
+
     def is_database_empty(self):
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
@@ -160,13 +182,38 @@ class Database:
         if self.check_email_exists(email):
             return False, "Email уже существует"
         
+        # Хешируем пароль перед сохранением
+        hashed_password, salt = self.hash_password(password)
+        
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO users (login, email, password, role) VALUES (?, ?, ?, ?)',
-                      (login, email, password, role))
-        conn.commit()
-        conn.close()
-        return True, "Регистрация успешна"
+        try:
+            cursor.execute('INSERT INTO users (login, email, password, salt, role) VALUES (?, ?, ?, ?, ?)',
+                          (login, email, hashed_password, salt, role))
+            conn.commit()
+            return True, "Регистрация успешна"
+        except Exception as e:
+            return False, f"Ошибка при регистрации: {str(e)}"
+        finally:
+            conn.close()
+
+    def check_credentials(self, login, password):
+        """Проверяет учетные данные пользователя и возвращает роль в случае успеха"""
+        conn = sqlite3.connect(self.db_name)
+        cursor = conn.cursor()
+        try:
+            # Получаем хешированный пароль и соль для данного логина
+            cursor.execute('SELECT password, salt, role FROM users WHERE login = ?', (login,))
+            result = cursor.fetchone()
+            
+            if result:
+                stored_password, stored_salt, role = result
+                # Проверяем пароль
+                if self.verify_password(stored_password, stored_salt, password):
+                    return role
+            return None
+        finally:
+            conn.close()
 
     def check_user_exists(self, login, password):
         conn = sqlite3.connect(self.db_name)
@@ -195,16 +242,13 @@ class Database:
         return user is not None
 
     def get_user_id(self, login):
-        try:
-            conn = sqlite3.connect(self.db_name)
-            cursor = conn.cursor()
-            cursor.execute('SELECT user_id FROM users WHERE login = ?', (login,))
-            result = cursor.fetchone()
-            conn.close()
-            return result[0] if result else None
-        except Exception as e:
-            print(f"Error getting user ID: {e}")
-            return None
+        """Получает ID пользователя по логину"""
+        conn = sqlite3.connect(self.db_name)
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id FROM users WHERE login = ?', (login,))
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else None
 
     def search_tickets(self, origin_city, destination_city, departure_date, return_date=None, passenger_count=1, travel_class='Economy'):
         conn = sqlite3.connect(self.db_name)
@@ -468,12 +512,39 @@ class Database:
             print(f"Error purchasing ticket: {e}")
             return False, "Ошибка при покупке билета"
 
-    def check_credentials(self, login, password):
+    def get_user_tickets(self, user_id):
+        """Получает все билеты пользователя с детальной информацией"""
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
         
-        cursor.execute('SELECT role FROM users WHERE login = ? AND password = ?', (login, password))
-        result = cursor.fetchone()
+        query = """
+        SELECT 
+            pt.TicketID,
+            pt.PassengerName,
+            pt.PassengerEmail,
+            pt.PassengerPhone,
+            pt.SeatNumber,
+            pt.PurchaseDate,
+            a.Name as AirlineName,
+            orig.AirportName as OriginAirport,
+            oc.Name as OriginCity,
+            dest.AirportName as DestinationAirport,
+            dc.Name as DestinationCity,
+            f.DepartureDate,
+            f.ArrivalDate,
+            f.Price
+        FROM PurchasedTickets pt
+        JOIN Flights f ON pt.FlightID = f.FlightID
+        JOIN Airlines a ON f.AirlineID = a.AirlineID
+        JOIN Airports orig ON f.OriginAirportID = orig.AirportID
+        JOIN City oc ON orig.CityID = oc.CityID
+        JOIN Airports dest ON f.DestinationAirportID = dest.AirportID
+        JOIN City dc ON dest.CityID = dc.CityID
+        WHERE pt.UserID = ?
+        ORDER BY pt.PurchaseDate DESC
+        """
         
+        cursor.execute(query, (user_id,))
+        tickets = cursor.fetchall()
         conn.close()
-        return result[0] if result else None
+        return tickets

@@ -3,6 +3,49 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QLabel, QLineEdit, QPushButton, QMessageBox)
 from PySide6.QtGui import QIcon
 from database import Database
+import re
+
+# Общие стили для окон
+COMMON_STYLES = """
+    QMainWindow {
+        background-color: #2b5876;
+    }
+    QLabel {
+        color: white;
+    }
+    QLineEdit {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: black;
+        color: white;
+    }
+    QPushButton {
+        padding: 8px 16px;
+        background-color: #4e4376;
+        color: white;
+        border: none;
+        border-radius: 4px;
+    }
+    QPushButton:hover {
+        background-color: #5e5386;
+    }
+"""
+
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def is_valid_password(password):
+    if len(password) < 8:
+        return False, "Пароль должен содержать минимум 8 символов"
+    if not any(c.isupper() for c in password):
+        return False, "Пароль должен содержать хотя бы одну заглавную букву"
+    if not any(c.islower() for c in password):
+        return False, "Пароль должен содержать хотя бы одну строчную букву"
+    if not any(c.isdigit() for c in password):
+        return False, "Пароль должен содержать хотя бы одну цифру"
+    return True, ""
 
 class LoginWindow(QMainWindow):
     logged_in = Signal(str)
@@ -15,7 +58,6 @@ class LoginWindow(QMainWindow):
         self.setFixedSize(400, 300)
         icon = QIcon("pineapple.ico")
         self.setWindowIcon(icon)
-
         
         # Создаем центральный виджет и главный layout
         central_widget = QWidget()
@@ -60,32 +102,8 @@ class LoginWindow(QMainWindow):
         # Добавляем форму в главный layout
         main_layout.addWidget(form_widget)
         
-        # Стилизация
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #2b5876;
-            }
-            QLabel {
-                color: white;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background-color: black;
-                color: white;
-            }
-            QPushButton {
-                padding: 8px 16px;
-                background-color: #4e4376;
-                color: white;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #5e5386;
-            }
-        """)
+        # Применяем общие стили
+        self.setStyleSheet(COMMON_STYLES)
 
     def login(self):
         login = self.login_edit.text()
@@ -171,32 +189,8 @@ class RegisterWindow(QMainWindow):
         # Добавляем форму в главный layout
         main_layout.addWidget(form_widget)
         
-        # Стилизация
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #2b5876;
-            }
-            QLabel {
-                color: white;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background-color: black;
-                color: white;
-            }
-            QPushButton {
-                padding: 8px 16px;
-                background-color: #4e4376;
-                color: white;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #5e5386;
-            }
-        """)
+        # Применяем общие стили
+        self.setStyleSheet(COMMON_STYLES)
 
     def register(self):
         login = self.login_edit.text()
@@ -206,6 +200,15 @@ class RegisterWindow(QMainWindow):
         
         if not all([login, email, password, confirm_password]):
             QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все поля")
+            return
+            
+        if not is_valid_email(email):
+            QMessageBox.warning(self, "Ошибка", "Некорректный формат email")
+            return
+            
+        is_password_valid, password_error = is_valid_password(password)
+        if not is_password_valid:
+            QMessageBox.warning(self, "Ошибка", password_error)
             return
             
         if password != confirm_password:
@@ -229,6 +232,9 @@ class RegisterWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка", "Ошибка при регистрации")
 
     def back_to_login(self):
-        self.login_window = LoginWindow(self.main_window)
-        self.login_window.show()
+        if hasattr(self, 'login_window'):
+            self.login_window.show()
+        else:
+            self.login_window = LoginWindow(self.main_window)
+            self.login_window.show()
         self.hide()

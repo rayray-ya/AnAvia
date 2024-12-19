@@ -1,16 +1,20 @@
-from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+from PySide6.QtCore import (QCoreApplication, QDate, QLocale,
                             QMetaObject, QObject, QPoint, QRect,
                             QSize, QTime, QUrl, Qt)
 from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
                            QFont, QFontDatabase, QGradient, QIcon,
                            QImage, QKeySequence, QLinearGradient, QPainter,
                            QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QDateEdit, QHBoxLayout,
-                               QLabel, QLineEdit, QMainWindow, QPushButton,
-                               QSizePolicy, QVBoxLayout, QWidget, QTableWidget,
-                               QTableWidgetItem, QHeaderView, QMessageBox, QTimeEdit, QGridLayout)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton,
+                               QLabel, QLineEdit, QMessageBox, QComboBox, QCalendarWidget,
+                               QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView,
+                               QTimeEdit, QGridLayout, QDateEdit)
 from database import Database
 from purchase_window import PurchaseDialog
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+import os
+from datetime import datetime
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -151,6 +155,11 @@ class MainWindow(QMainWindow):
         # Initialize admin controls (but don't show them yet)
         self.setup_admin_controls()
 
+        # Add export button
+        self.export_button = QPushButton("Экспорт билетов в Excel", self)
+        self.export_button.clicked.connect(self.export_tickets_to_excel)
+        self.ui.mainLayout.addWidget(self.export_button)
+
     def apply_style(self):
         self.setStyleSheet("""
             QMainWindow {
@@ -284,11 +293,11 @@ class MainWindow(QMainWindow):
             self.admin_widget.show()
 
     def set_user(self, login, role):
-        self.current_login = login
+        """Set the current user and update UI accordingly"""
+        self.current_user = login
         self.current_role = role
-        self.current_user_id = self.db.get_user_id(login)
+        self.user_id = self.db.get_user_id(login)  # Добавим получение user_id
         
-        # Show/hide admin panel based on role
         if role == "admin":
             self.show_admin_controls()
         else:
@@ -386,6 +395,7 @@ class MainWindow(QMainWindow):
         headers = ["Авиакомпания", "Откуда", "Куда", "Дата вылета", "Время вылета", "Время прилета", "Цена", "Действия"]
         self.ui.resultsTable.setColumnCount(len(headers))
         self.ui.resultsTable.setHorizontalHeaderLabels(headers)
+        self.ui.resultsTable.verticalHeader().setVisible(False)
 
         # Create a dictionary to store unique flights per airline
         unique_flights = {}
@@ -459,7 +469,7 @@ class MainWindow(QMainWindow):
 
     def buy_ticket(self, ticket):
         # Проверяем, вошел ли пользователь в систему
-        if not hasattr(self, 'current_user_id'):
+        if not hasattr(self, 'user_id') or self.user_id is None:
             QMessageBox.warning(self, "Ошибка", "Необходимо войти в систему")
             return
             
@@ -486,7 +496,7 @@ class MainWindow(QMainWindow):
             for passenger in passengers_info:
                 success, message = self.db.purchase_ticket(
                     ticket[0],  # flight_id
-                    self.current_user_id,  # user_id
+                    self.user_id,  # user_id
                     passenger['name'],
                     passenger['email'],
                     passenger['phone']
@@ -508,6 +518,66 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.warning(self, "Ошибка", f"Ошибка при покупке билетов: {error_message}")
 
-    def purchase_ticket(self, flight_id, name, email, phone):
-        # Implement purchase logic here
-        pass
+    def export_tickets_to_excel(self):
+        if not hasattr(self, 'user_id') or self.user_id is None:
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, войдите в систему")
+            return
+            
+        tickets = self.db.get_user_tickets(self.user_id)
+        if not tickets:
+            QMessageBox.information(self, "Информация", "У вас нет купленных билетов")
+            return
+            
+        # Создаем новую книгу Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Мои билеты"
+        
+        # Заголовки
+        headers = [
+            "Номер билета", "Пассажир", "Email", "Телефон", "Место",
+            "Дата покупки", "Авиакомпания", "Аэропорт отправления",
+            "Город отправления", "Аэропорт прибытия", "Город прибытия",
+            "Дата вылета", "Дата прибытия", "Цена"
+        ]
+        
+        # Стили для заголовков
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+        
+        # Применяем заголовки и стили
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+            
+        # Заполняем данные
+        for row, ticket in enumerate(tickets, 2):
+            for col, value in enumerate(ticket, 1):
+                cell = ws.cell(row=row, column=col, value=value)
+                cell.alignment = Alignment(horizontal="center")
+                
+        # Автоматическая ширина столбцов
+        for column in ws.columns:
+            max_length = 0
+            column = [cell for cell in column]
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            ws.column_dimensions[column[0].column_letter].width = adjusted_width
+            
+        # Сохраняем файл
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        filename = f"tickets_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filepath = os.path.join(desktop_path, filename)
+        
+        try:
+            wb.save(filepath)
+            QMessageBox.information(self, "Успех", f"Билеты экспортированы в файл:\n{filepath}")
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось сохранить файл:\n{str(e)}")
